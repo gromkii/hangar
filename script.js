@@ -1,8 +1,21 @@
+/*
+  NOTES
+
+  DD = d + (min/60) + (sec/3600)
+  [^0-9.A-Z]
+  string.split(/[^0-9.A-Z]/g).filter(node => node !== "");
+  yaw = z, pitch = y, row = x
+
+  LLA -> ECEF
+*/
+
 (function() {
   'use strict';
 
-  const WGS84_a = 6378137.0;
-  const WGS84_b = 6356752.314245;
+  const WGS84_a = 6.3781370; // 6378137.0
+  const WGS84_b = 6.356752314245; // 6356752.314245
+
+
 
   let camera, scene, renderer;
   let nodes = data;
@@ -14,29 +27,13 @@
   init();
   animate();
 
-  scene.add(marker);
-  marker.position.set(2, 0, 0);
-
-  scene.add(marker2);
-  marker2.position.set(-2, 0, 0);
-
   let meshes = meshCreator();
 
-  console.log(meshes[0]);
-
-
-  /*
-      DD = d + (min/60) + (sec/3600)
-      [^0-9.A-Z]
-      string.split(/[^0-9.A-Z]/g).filter(node => node !== "");
-      yaw = z, pitch = y, row = x
-
-      LLA -> ECEF
-   */
+  addMarkersToScene();
 
   function init() {
 
-    camera = new THREE.PerspectiveCamera( 70, window.innerWidth / window.innerHeight, 0.01, 10 );
+    camera = new THREE.PerspectiveCamera( 70, window.innerWidth / window.innerHeight, 0.01, 10000 );
     camera.position.z = 5;
 
     controls = new THREE.OrbitControls(camera);
@@ -51,12 +48,8 @@
 
   function animate() {
 
-    requestAnimationFrame( animate );
-    renderer.render( scene, camera );
-
-    marker.rotation.x += 0.01;
-    marker2.rotation.x -= 0.01;
-
+    requestAnimationFrame(animate);
+    renderer.render(scene, camera);
   }
 
   function meshCreator() {
@@ -69,8 +62,16 @@
       obj.marker = createMarker();
 
       // call buildCoordiates to return lat, lng, alt.
-      obj = {...obj, ...buildCoordinates(nodes[i])}
+      obj = {
+        ...obj,
+        ...buildCoordinates(nodes[i])
+      };
 
+      // create xyz coordinates based on lat, lng, alt. (ref = 0?)
+      obj = {
+        ...obj,
+        ...topocentric_from_lla(obj.lat, obj.lng, obj.alt, 0, 0, 0)
+      };
       meshes.push(obj);
     }
 
@@ -98,12 +99,10 @@
     ];
 
     let material = new THREE.MeshPhongMaterial({color: 0xffffff});
+    material.wireframe = true;
 
 
-    let mesh = new THREE.Mesh( geometry, material );
-    mesh.wireframe = true;
-
-    return mesh;
+    return new THREE.Mesh( geometry, material );
   }
 
   function ecef_from_lla(lat, lon, alt) {
@@ -195,5 +194,12 @@
       lng,
       alt
     }
+  }
+
+  function addMarkersToScene() {
+    meshes.map(mesh => {
+      scene.add(mesh.marker);
+      mesh.marker.position.set(mesh.x, mesh.y, mesh.z);
+    });
   }
 }());
